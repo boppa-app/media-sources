@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://static.boppa.app/schema/manifest.v1.schema.json",
+  "title": "Boppa media source manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "name", "url"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable, unique identifier for the source, usually its domain. Never change it."
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-form version. Change it on every release; the app applies an update when it differs."
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "url": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The domain the source communicates with, for example archive.org."
+    },
+    "author": { "type": "string" },
+    "highlightColor": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    },
+    "allowedUrls": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "playbackUrl": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Page to load as the player, instead of playback/index.html."
+    },
+    "playbackUserAgent": { "type": "string" },
+    "context": {
+      "type": "object",
+      "description": "Background pages, keyed by folder name. Scripts live in context/<key>/*.js.",
+      "propertyNames": { "$ref": "#/$defs/key" },
+      "additionalProperties": { "$ref": "#/$defs/context" }
+    },
+    "popup": {
+      "type": "object",
+      "description": "Interactive pages, keyed by the id passed to boppaPopup(). Scripts live in popup/<id>/*.js.",
+      "propertyNames": { "$ref": "#/$defs/key" },
+      "additionalProperties": { "$ref": "#/$defs/popup" }
+    }
+  },
+  "$defs": {
+    "key": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "url", "intervalSeconds"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "minLength": 1 },
+        "intervalSeconds": { "type": "integer", "minimum": 1 },
+        "customUserAgent": { "type": "string" }
+      }
+    },
+    "popup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "url"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "minLength": 1 },
+        "customUserAgent": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "./schema/iOS-config.v1.schema.json",
+  "format": 1,
+  "defaultMediaSources": [
+    "https://static.boppa.app/internet-archive.boppa"
+  ]
+}
