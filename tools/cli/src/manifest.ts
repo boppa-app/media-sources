@@ -7,6 +7,7 @@ import { parseUserScriptMetadata, type UserScriptMetadata } from "./userscript.t
 export type InjectionTime = "atDocumentStart" | "atDocumentEnd";
 
 export interface ContextConfig {
+  $schema?: string;
   title: string;
   url: string;
   intervalSeconds: number;
@@ -14,6 +15,14 @@ export interface ContextConfig {
 }
 
 export interface PopupConfig {
+  $schema?: string;
+  title: string;
+  url: string;
+  customUserAgent?: string;
+}
+
+export interface WorkerConfig {
+  $schema?: string;
   title: string;
   url: string;
   customUserAgent?: string;
@@ -22,6 +31,7 @@ export interface PopupConfig {
 export interface Manifest {
   $schema?: string;
   id: string;
+  fqdn?: string;
   version: string;
   name: string;
   url: string;
@@ -30,8 +40,6 @@ export interface Manifest {
   allowedUrls?: string[];
   playbackUrl?: string;
   playbackUserAgent?: string;
-  context?: Record<string, ContextConfig>;
-  popup?: Record<string, PopupConfig>;
 }
 
 export interface AppConfig {
@@ -45,6 +53,8 @@ export interface UserScript extends UserScriptMetadata {
 }
 
 export const MANIFEST_FILE = "manifest.json";
+export const CONFIG_FILE = "config.json";
+export const ENTRY_DIRS = ["context", "workers", "popup"] as const;
 export const ICON_FILE = "icon.svg";
 export const PLAYBACK_DIR = "playback";
 export const PLAYBACK_HTML_FILE = `${PLAYBACK_DIR}/index.html`;
@@ -56,6 +66,16 @@ export const DATA_SCRIPTS = {
 } as const;
 
 export type DataGroup = keyof typeof DATA_SCRIPTS;
+
+export type EntryKind = typeof ENTRY_DIRS[number];
+
+export const ENTRY_SCHEMAS: Record<EntryKind, string> = {
+  context: "context.v1.schema.json",
+  workers: "worker.v1.schema.json",
+  popup: "popup.v1.schema.json",
+};
+
+const ENTRY_KEY = /^[A-Za-z0-9_-]+$/;
 
 export const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
 
@@ -72,6 +92,7 @@ const schemaUrl = (name: string) => new URL(`../../../schema/${name}`, import.me
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 let manifestValidator: ValidateFunction | undefined;
 let appConfigValidator: ValidateFunction | undefined;
+const entryValidators = new Map<EntryKind, ValidateFunction>();
 
 function compile(name: string): ValidateFunction {
   return ajv.compile(JSON.parse(readFileSync(schemaUrl(name), "utf8")));
@@ -101,6 +122,24 @@ export function validateAppConfig(value: unknown): AppConfig {
     throw new ValidationError("iOS-config.json", describeSchemaErrors(appConfigValidator.errors));
   }
   return value as AppConfig;
+}
+
+export function isEntryKind(value: string): value is EntryKind {
+  return (ENTRY_DIRS as readonly string[]).includes(value);
+}
+
+export function entryKeys(files: Map<string, Buffer>, kind: EntryKind): string[] {
+  const keys = new Set<string>();
+  for (const path of files.keys()) {
+    const parts = path.split("/");
+    if (parts[0] === kind && parts.length >= 3) keys.add(parts[1]);
+  }
+  return [...keys].sort(compareBytes);
+}
+
+export function entryConfig<T>(files: Map<string, Buffer>, kind: EntryKind, key: string): T | undefined {
+  const data = files.get(`${kind}/${key}/${CONFIG_FILE}`);
+  return data === undefined ? undefined : JSON.parse(data.toString("utf8")) as T;
 }
 
 export function userScripts(files: Map<string, Buffer>, dir: string): UserScript[] {
@@ -140,8 +179,7 @@ export function validateSource(
     problems.push(`add ${PLAYBACK_HTML_FILE} or set "playbackUrl" in manifest.json`);
   }
 
-  const contextKeys = new Set(Object.keys(manifest.context ?? {}));
-  const popupIds = new Set(Object.keys(manifest.popup ?? {}));
+  problems.push(...entryProblems(files));
   let totalBytes = 0;
   let dataScriptCount = 0;
 
@@ -172,7 +210,7 @@ export function validateSource(
       } else {
         dataScriptCount++;
       }
-    } else if (userScriptDir !== undefined && isUserScriptDir(userScriptDir, contextKeys, popupIds)) {
+    } else if (userScriptDir !== undefined && isUserScriptDir(userScriptDir)) {
       if (text !== undefined) {
         try {
           parseUserScriptMetadata(text);
@@ -180,10 +218,8 @@ export function validateSource(
           problems.push(`${path}: ${(error as Error).message}`);
         }
       }
-    } else if (parts[0] === "context" && parts.length === 3 && !contextKeys.has(parts[1])) {
-      problems.push(`${path}: "${parts[1]}" is not a key of "context" in manifest.json`);
-    } else if (parts[0] === "popup" && parts.length === 3 && !popupIds.has(parts[1])) {
-      problems.push(`${path}: "${parts[1]}" is not a key of "popup" in manifest.json`);
+    } else if (parts.length === 3 && isEntryKind(parts[0]) && parts[2] === CONFIG_FILE) {
+      continue;
     } else {
       problems.push(`${path}: not part of the package layout`);
     }
@@ -198,11 +234,49 @@ export function validateSource(
   return manifest;
 }
 
-function isUserScriptDir(dir: string, contextKeys: Set<string>, popupIds: Set<string>): boolean {
+function isUserScriptDir(dir: string): boolean {
   if (dir === PLAYBACK_DIR) return true;
   const [kind, key, ...rest] = dir.split("/");
-  if (rest.length > 0) return false;
-  return (kind === "context" && contextKeys.has(key)) || (kind === "popup" && popupIds.has(key));
+  return rest.length === 0 && isEntryKind(kind) && ENTRY_KEY.test(key);
+}
+
+function entryProblems(files: Map<string, Buffer>): string[] {
+  const problems: string[] = [];
+  for (const kind of ENTRY_DIRS) {
+    for (const key of entryKeys(files, kind)) {
+      const path = `${kind}/${key}/${CONFIG_FILE}`;
+      if (!ENTRY_KEY.test(key)) {
+        problems.push(`${kind}/${key}: folder names may only contain letters, digits, "_" and "-"`);
+        continue;
+      }
+      const data = files.get(path);
+      if (data === undefined) {
+        problems.push(`${kind}/${key}: ${CONFIG_FILE} is missing`);
+        continue;
+      }
+      let value: unknown;
+      try {
+        value = parseJson(data.toString("utf8"), path);
+      } catch (error) {
+        problems.push(...(error as ValidationError).problems.map((p) => `${path}: ${p}`));
+        continue;
+      }
+      const validate = entryValidator(kind);
+      if (!validate(value)) {
+        problems.push(...describeSchemaErrors(validate.errors).map((p) => `${path}: ${p}`));
+      }
+    }
+  }
+  return problems;
+}
+
+function entryValidator(kind: EntryKind): ValidateFunction {
+  let validate = entryValidators.get(kind);
+  if (validate === undefined) {
+    validate = compile(ENTRY_SCHEMAS[kind]);
+    entryValidators.set(kind, validate);
+  }
+  return validate;
 }
 
 function describeDataScripts(): string {
