@@ -2,6 +2,9 @@
   "name": "media-sources",
   "private": true,
   "type": "module",
+  "boppa": {
+    "baseUrl": "https://static.boppa.app"
+  },
   "workspaces": [
     "tools/cli"
   ],
