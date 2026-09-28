@@ -5,7 +5,7 @@ import { parseArgs } from "node:util";
 import { APP_CONFIG_FILE, BASE_URL_VARIABLE, build, defaultBaseUrl, loadRepo, normalizeBaseUrl } from "./build.ts";
 import { checkVersions } from "./check.ts";
 import { HEADER_SIZE, parseHeader } from "./header.ts";
-import { MANIFEST_FILE, PLAYBACK_DIR, userScripts } from "./manifest.ts";
+import { ENTRY_DIRS, entryKeys, MANIFEST_FILE, PLAYBACK_DIR, userScripts } from "./manifest.ts";
 import { contentHash, loadSourceDir, pack, packageManifest, readPackage } from "./package.ts";
 
 const DEFAULT_BASE_URL = defaultBaseUrl();
@@ -121,8 +121,7 @@ function inspectFile(file: string): void {
   console.log("playback      " + (pkg.manifest.playbackUrl ?? "playback/index.html"));
   const scriptDirs = [
     PLAYBACK_DIR,
-    ...Object.keys(pkg.manifest.context ?? {}).map((key) => `context/${key}`),
-    ...Object.keys(pkg.manifest.popup ?? {}).map((id) => `popup/${id}`),
+    ...ENTRY_DIRS.flatMap((kind) => entryKeys(pkg.files, kind).map((key) => `${kind}/${key}`)),
   ];
   for (const dir of scriptDirs) {
     const scripts = userScripts(pkg.files, dir);
