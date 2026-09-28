@@ -2,11 +2,14 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { APP_CONFIG_FILE, build, DEFAULT_BASE_URL, loadRepo } from "./build.ts";
+import { APP_CONFIG_FILE, BASE_URL_VARIABLE, build, defaultBaseUrl, loadRepo, normalizeBaseUrl } from "./build.ts";
 import { checkVersions } from "./check.ts";
 import { HEADER_SIZE, parseHeader } from "./header.ts";
 import { MANIFEST_FILE, PLAYBACK_DIR, userScripts } from "./manifest.ts";
 import { contentHash, loadSourceDir, pack, packageManifest, readPackage } from "./package.ts";
+
+const DEFAULT_BASE_URL = defaultBaseUrl();
+const REPO_COMMANDS = new Set(["validate", "build", "check-versions"]);
 
 const USAGE = `Usage: boppa <command> [options]
 
@@ -20,7 +23,8 @@ Commands:
 
 Options:
   -o, --out <path>             Output path
-      --base-url <url>         Site the repository deploys to (default: ${DEFAULT_BASE_URL})
+      --base-url <url>         Site the repository deploys to
+                               (default: ${DEFAULT_BASE_URL || `$${BASE_URL_VARIABLE}, or "boppa.baseUrl" in package.json`})
   -h, --help                   Show this help`;
 
 async function main(argv: string[]): Promise<void> {
@@ -34,18 +38,21 @@ async function main(argv: string[]): Promise<void> {
     },
   });
   const [command, ...args] = positionals;
-  const baseUrl = values["base-url"]!.replace(/\/+$/, "");
+  const baseUrl = normalizeBaseUrl(values["base-url"]!);
   if (values.help || !command) {
     console.log(USAGE);
     return;
+  }
+  if (REPO_COMMANDS.has(command) && baseUrl === "") {
+    throw new UsageError(`Set ${BASE_URL_VARIABLE}, add "boppa": { "baseUrl": "https://..." } to package.json, or pass --base-url`);
   }
 
   switch (command) {
     case "validate": {
       if (args.length === 0) {
-        const { sources } = loadRepo(process.cwd(), baseUrl);
+        const { appConfig, sources } = loadRepo(process.cwd(), baseUrl);
         for (const [name, source] of sources) console.log(`✓ ${name} (${source.manifest.id} ${source.manifest.version})`);
-        console.log(`✓ ${APP_CONFIG_FILE}`);
+        if (appConfig) console.log(`✓ ${APP_CONFIG_FILE}`);
       } else {
         for (const dir of args) {
           const { manifest } = loadSourceDir(resolve(dir));

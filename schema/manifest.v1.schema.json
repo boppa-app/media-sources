@@ -12,6 +12,11 @@
       "minLength": 1,
       "description": "Stable, unique identifier for the source, usually its domain. Never change it."
     },
+    "fqdn": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Domain whose media this source serves, for example archive.org. Defaults to id. Sources that share an fqdn address the same saved media, and only one of them can be enabled at a time."
+    },
     "version": {
       "type": "string",
       "minLength": 1,

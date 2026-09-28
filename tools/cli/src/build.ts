@@ -1,12 +1,13 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { type AppConfig, MANIFEST_FILE, parseJson, validateAppConfig, ValidationError } from "./manifest.ts";
 import { contentHash, loadSourceDir, pack, type Source } from "./package.ts";
 
-export const DEFAULT_BASE_URL = "https://static.boppa.app";
 export const APP_CONFIG_FILE = "iOS-config.json";
 export const SCHEMA_DIR = "schema";
+export const STATIC_DIR = "public";
 export const INDEX_PATH = "index.json";
+export const BASE_URL_VARIABLE = "BOPPA_BASE_URL";
 
 const SOURCE_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -18,8 +19,19 @@ export interface IndexEntry {
 }
 
 export interface Repo {
-  appConfig: AppConfig;
+  appConfig?: AppConfig;
   sources: Map<string, Source>;
+}
+
+export function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, "");
+}
+
+export function defaultBaseUrl(): string {
+  const configured = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8")) as {
+    boppa?: { baseUrl?: string };
+  };
+  return normalizeBaseUrl(process.env[BASE_URL_VARIABLE] || configured.boppa?.baseUrl || "");
 }
 
 export function packageUrl(baseUrl: string, name: string): string {
@@ -51,12 +63,11 @@ export function loadRepo(root: string, baseUrl: string): Repo {
       problems.push(...error.problems.map((p) => `${name}: ${p}`));
     }
   }
+  if (sources.size === 0) problems.push("no media source folders found");
 
   let appConfig: AppConfig | undefined;
   const appConfigPath = join(root, APP_CONFIG_FILE);
-  if (!existsSync(appConfigPath)) {
-    problems.push(`${APP_CONFIG_FILE} is missing`);
-  } else {
+  if (existsSync(appConfigPath)) {
     try {
       appConfig = validateAppConfig(parseJson(readFileSync(appConfigPath, "utf8"), APP_CONFIG_FILE));
       for (const url of appConfig.defaultMediaSources) {
@@ -72,7 +83,7 @@ export function loadRepo(root: string, baseUrl: string): Repo {
   }
 
   if (problems.length > 0) throw new ValidationError("Repository", problems);
-  return { appConfig: appConfig!, sources };
+  return { appConfig, sources };
 }
 
 export function localSourceName(baseUrl: string, url: string): string | undefined {
@@ -106,8 +117,17 @@ export function build(root: string, outDir: string, baseUrl: string): Map<string
     output.set(`${SCHEMA_DIR}/${file}`, readFileSync(join(schemaDir, file)));
   }
 
-  const { $schema: _, ...publishedAppConfig } = appConfig;
-  output.set(APP_CONFIG_FILE, text(JSON.stringify(publishedAppConfig, null, 2) + "\n"));
+  if (appConfig) {
+    const { $schema: _, ...publishedAppConfig } = appConfig;
+    output.set(APP_CONFIG_FILE, text(JSON.stringify(publishedAppConfig, null, 2) + "\n"));
+  }
+
+  const conflicts: string[] = [];
+  for (const [path, data] of staticFiles(join(root, STATIC_DIR))) {
+    if (output.has(path)) conflicts.push(`${STATIC_DIR}/${path} is also built from the repository`);
+    output.set(path, data);
+  }
+  if (conflicts.length > 0) throw new ValidationError("Repository", conflicts);
 
   rmSync(outDir, { recursive: true, force: true });
   for (const [path, data] of output) {
@@ -116,4 +136,19 @@ export function build(root: string, outDir: string, baseUrl: string): Map<string
     writeFileSync(target, data);
   }
   return output;
+}
+
+function staticFiles(dir: string): Map<string, Buffer> {
+  const files = new Map<string, Buffer>();
+  if (!existsSync(dir)) return files;
+  const walk = (current: string) => {
+    for (const entry of readdirSync(current, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      if (entry.name.startsWith(".")) continue;
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.isFile()) files.set(relative(dir, path).split(sep).join("/"), readFileSync(path));
+    }
+  };
+  walk(dir);
+  return files;
 }
