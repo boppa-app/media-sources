@@ -66,7 +66,7 @@ for (let i = startDocIndex; i < docs.length; i++) {
       lowResArtworkUrl: lowResArtworkUrl,
       highResArtworkUrl: highResArtworkUrl,
       url: 'https://archive.org/download/' + d.identifier + '/' + encodeURIComponent(f.name),
-      albums: [{ id: d.identifier, title: d.title || d.identifier, lowResArtworkUrl: lowResArtworkUrl, highResArtworkUrl: highResArtworkUrl }]
+      tracklists: [{ id: d.identifier, title: d.title || d.identifier, lowResArtworkUrl: lowResArtworkUrl, highResArtworkUrl: highResArtworkUrl }]
     });
     if (allItems.length >= 30) {
       nextDocIndex = j + 1 < audioFiles.length ? i : i + 1;

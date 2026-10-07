@@ -147,6 +147,45 @@ test("unknown files and data scripts are rejected", () => {
   assert.match(problems.join("\n"), /playback\/nested\/x\.js: not part of the package layout/);
 });
 
+test("data scripts must belong to a declared type", () => {
+  const problems = problemsOf(() => loadSourceDir(makeSource({
+    "data/search/tracks/video.js": "",
+    "data/get/profile/artist.js": "",
+  })));
+  assert.match(problems.join("\n"), /data\/search\/tracks\/video\.js: not a known data script/);
+  assert.match(problems.join("\n"), /data\/get\/profile\/artist\.js: not a known data script/);
+});
+
+test("declared types are accepted with their scripts", () => {
+  const manifest = {
+    ...baseManifest,
+    trackTypes: [
+      { id: "song" },
+      { id: "episode", name: { one: "Episode", other: "Episodes" }, belongsTo: ["series"] },
+    ],
+    profileTypes: [{ id: "user", name: { one: "Person", other: "People" } }],
+    tracklistTypes: [{ id: "series", name: "Show", presentation: "album" }],
+  };
+  assert.doesNotThrow(() => loadSourceDir(makeSource({
+    "manifest.json": manifest,
+    "data/search/tracks/episode.js": "postResult({ items: [] });\n",
+    "data/get/profile/user.js": "",
+    "data/list/profileTracklists/series.js": "",
+  })));
+});
+
+test("type declarations are checked for duplicates and unknown parents", () => {
+  const problems = problemsOf(() => loadSourceDir(makeSource({
+    "manifest.json": {
+      ...baseManifest,
+      trackTypes: [{ id: "song", belongsTo: ["album"] }],
+      tracklistTypes: [{ id: "playlist" }, { id: "playlist" }],
+    },
+  })));
+  assert.match(problems.join("\n"), /trackTypes: "song" belongsTo "album", which is not a declared tracklist type/);
+  assert.match(problems.join("\n"), /tracklistTypes: "playlist" is declared more than once/);
+});
+
 test("manifest fields are checked against the schema", () => {
   const problems = problemsOf(() => loadSourceDir(makeSource({
     "manifest.json": { ...baseManifest, version: "", playback: {}, highlightColor: "white" },

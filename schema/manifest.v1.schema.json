@@ -4,7 +4,7 @@
   "title": "Boppa media source manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "version", "name", "url"],
+  "required": ["id", "version", "name", "url", "trackTypes", "profileTypes", "tracklistTypes"],
   "properties": {
     "$schema": { "type": "string" },
     "id": {
@@ -42,6 +42,78 @@
       "minLength": 1,
       "description": "Page to load as the player, instead of playback/index.html."
     },
-    "playbackUserAgent": { "type": "string" }
+    "playbackUserAgent": { "type": "string" },
+    "trackTypes": {
+      "type": "array",
+      "description": "Kinds of tracks the source serves, in display order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id"],
+        "properties": {
+          "id": { "$ref": "#/$defs/typeId" },
+          "name": { "$ref": "#/$defs/pluralName" },
+          "icon": { "$ref": "#/$defs/icon" },
+          "media": { "enum": ["audio", "video"] },
+          "belongsTo": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/typeId" },
+            "description": "Tracklist types a track of this type can belong to, in priority order."
+          }
+        }
+      }
+    },
+    "profileTypes": {
+      "type": "array",
+      "description": "Kinds of profiles (artists, channels, users) the source serves, in display order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id"],
+        "properties": {
+          "id": { "$ref": "#/$defs/typeId" },
+          "name": { "$ref": "#/$defs/pluralName" },
+          "icon": { "$ref": "#/$defs/icon" }
+        }
+      }
+    },
+    "tracklistTypes": {
+      "type": "array",
+      "description": "Kinds of tracklists the source serves, in display order.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id"],
+        "properties": {
+          "id": { "$ref": "#/$defs/typeId" },
+          "name": { "$ref": "#/$defs/pluralName" },
+          "icon": { "$ref": "#/$defs/icon" },
+          "presentation": { "enum": ["album", "playlist"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "typeId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "description": "Stable identifier for the type. It names the type's script files, and the app groups the library by it across sources."
+    },
+    "pluralName": {
+      "description": "Display name. A string is the singular and gets an \"s\" for the plural; use { one, other } for irregular plurals.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["one"],
+          "properties": {
+            "one": { "type": "string", "minLength": 1 },
+            "other": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "icon": { "type": "string", "minLength": 1, "description": "SF Symbol name." }
   }
 }
