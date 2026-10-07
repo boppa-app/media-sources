@@ -1,7 +1,7 @@
 {
   "$schema": "../schema/manifest.v1.schema.json",
   "id": "archive.org",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "name": "Internet Archive",
   "url": "archive.org",
   "highlightColor": "#FFFFFF",
