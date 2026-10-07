@@ -10,13 +10,16 @@ export const baseManifest = {
   version: "1.0.0",
   name: "Example",
   url: "example.com",
+  trackTypes: [{ id: "song" }],
+  profileTypes: [],
+  tracklistTypes: [],
 };
 
 export function makeSource(files: Record<string, string | object>): string {
   const dir = mkdtempSync(join(tmpdir(), "boppa-source-"));
   const all: Record<string, string | object> = {
     "manifest.json": baseManifest,
-    "data/search/songs.js": "postResult({ items: [] });\n",
+    "data/search/tracks/song.js": "postResult({ items: [] });\n",
     "playback/index.html": "<!doctype html><html></html>\n",
     "playback/01-bridge.js": script("Bridge", "document-start"),
     ...files,

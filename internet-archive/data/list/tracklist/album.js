@@ -49,8 +49,8 @@ const items = toUse.map((f, i) => ({
   lowResArtworkUrl: lowResArtworkUrl,
   highResArtworkUrl: highResArtworkUrl,
   url: 'https://archive.org/download/' + identifier + '/' + encodeURIComponent(f.name),
-  artists: (f.artist || albumArtist) ? [{ id: f.artist || albumArtist, name: f.artist || albumArtist }] : [],
-  albums: [{ id: identifier, title: albumTitle, lowResArtworkUrl: lowResArtworkUrl, highResArtworkUrl: highResArtworkUrl }]
+  profiles: (f.artist || albumArtist) ? [{ id: f.artist || albumArtist, name: f.artist || albumArtist }] : [],
+  tracklists: [{ id: identifier, title: albumTitle, lowResArtworkUrl: lowResArtworkUrl, highResArtworkUrl: highResArtworkUrl }]
 }));
 
 postResult({ items: items });

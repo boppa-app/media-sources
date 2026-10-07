@@ -28,6 +28,29 @@ export interface WorkerConfig {
   customUserAgent?: string;
 }
 
+export type PluralName = string | { one: string; other?: string };
+
+export interface TrackTypeDeclaration {
+  id: string;
+  name?: PluralName;
+  icon?: string;
+  media?: "audio" | "video";
+  belongsTo?: string[];
+}
+
+export interface ProfileTypeDeclaration {
+  id: string;
+  name?: PluralName;
+  icon?: string;
+}
+
+export interface TracklistTypeDeclaration {
+  id: string;
+  name?: PluralName;
+  icon?: string;
+  presentation?: "album" | "playlist";
+}
+
 export interface Manifest {
   $schema?: string;
   id: string;
@@ -40,6 +63,9 @@ export interface Manifest {
   allowedUrls?: string[];
   playbackUrl?: string;
   playbackUserAgent?: string;
+  trackTypes: TrackTypeDeclaration[];
+  profileTypes: ProfileTypeDeclaration[];
+  tracklistTypes: TracklistTypeDeclaration[];
 }
 
 export interface AppConfig {
@@ -59,13 +85,28 @@ export const ICON_FILE = "icon.svg";
 export const PLAYBACK_DIR = "playback";
 export const PLAYBACK_HTML_FILE = `${PLAYBACK_DIR}/index.html`;
 
-export const DATA_SCRIPTS = {
-  search: ["songs", "videos", "albums", "artists", "playlists"],
-  list: ["album", "playlist", "artistSongs", "artistVideos", "artistAlbums", "artistPlaylists", "trackRadio"],
-  get: ["artist", "song", "video", "album", "playlist"],
-} as const;
+export const TRACK_RADIO_SCRIPT = "data/list/trackRadio.js";
 
-export type DataGroup = keyof typeof DATA_SCRIPTS;
+export function dataScriptPaths(manifest: Manifest): string[] {
+  const tracks = manifest.trackTypes.map((type) => type.id);
+  const profiles = manifest.profileTypes.map((type) => type.id);
+  const tracklists = manifest.tracklistTypes.map((type) => type.id);
+  const groups: [string, string[]][] = [
+    ["search/tracks", tracks],
+    ["search/profiles", profiles],
+    ["search/tracklists", tracklists],
+    ["get/track", tracks],
+    ["get/profile", profiles],
+    ["get/tracklist", tracklists],
+    ["list/tracklist", tracklists],
+    ["list/profileTracks", tracks],
+    ["list/profileTracklists", tracklists],
+  ];
+  return [
+    ...groups.flatMap(([dir, ids]) => ids.map((id) => `data/${dir}/${id}.js`)),
+    TRACK_RADIO_SCRIPT,
+  ];
+}
 
 export type EntryKind = typeof ENTRY_DIRS[number];
 
@@ -179,7 +220,9 @@ export function validateSource(
     problems.push(`add ${PLAYBACK_HTML_FILE} or set "playbackUrl" in manifest.json`);
   }
 
+  problems.push(...typeProblems(manifest));
   problems.push(...entryProblems(files));
+  const knownDataScripts = new Set(dataScriptPaths(manifest));
   let totalBytes = 0;
   let dataScriptCount = 0;
 
@@ -204,9 +247,10 @@ export function validateSource(
     } else if (path === PLAYBACK_HTML_FILE) {
       continue;
     } else if (parts[0] === "data") {
-      const names = DATA_SCRIPTS[parts[1] as DataGroup] as readonly string[] | undefined;
-      if (parts.length !== 3 || !names?.includes(parts[2].replace(/\.js$/, "")) || !parts[2].endsWith(".js")) {
-        problems.push(`${path}: not a known data script; expected one of ${describeDataScripts()}`);
+      if (!knownDataScripts.has(path)) {
+        problems.push(
+          `${path}: not a known data script for the declared types; expected one of ${[...knownDataScripts].join(", ")}`,
+        );
       } else {
         dataScriptCount++;
       }
@@ -279,8 +323,27 @@ function entryValidator(kind: EntryKind): ValidateFunction {
   return validate;
 }
 
-function describeDataScripts(): string {
-  return Object.entries(DATA_SCRIPTS)
-    .map(([group, names]) => `data/${group}/{${names.join(",")}}.js`)
-    .join(", ");
+function typeProblems(manifest: Manifest): string[] {
+  const problems: string[] = [];
+  const families: [string, { id: string }[]][] = [
+    ["trackTypes", manifest.trackTypes],
+    ["profileTypes", manifest.profileTypes],
+    ["tracklistTypes", manifest.tracklistTypes],
+  ];
+  for (const [family, types] of families) {
+    const seen = new Set<string>();
+    for (const type of types) {
+      if (seen.has(type.id)) problems.push(`${family}: "${type.id}" is declared more than once`);
+      seen.add(type.id);
+    }
+  }
+  const tracklistIds = new Set(manifest.tracklistTypes.map((type) => type.id));
+  for (const type of manifest.trackTypes) {
+    for (const parent of type.belongsTo ?? []) {
+      if (!tracklistIds.has(parent)) {
+        problems.push(`trackTypes: "${type.id}" belongsTo "${parent}", which is not a declared tracklist type`);
+      }
+    }
+  }
+  return problems;
 }

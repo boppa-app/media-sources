@@ -4,5 +4,14 @@
   "version": "0.1.1",
   "name": "Internet Archive",
   "url": "archive.org",
-  "highlightColor": "#FFFFFF"
+  "highlightColor": "#FFFFFF",
+  "trackTypes": [
+    { "id": "song", "name": { "one": "Song", "other": "Songs" }, "media": "audio", "belongsTo": ["album"] }
+  ],
+  "profileTypes": [
+    { "id": "artist", "name": { "one": "Artist", "other": "Artists" } }
+  ],
+  "tracklistTypes": [
+    { "id": "album", "name": { "one": "Album", "other": "Albums" }, "presentation": "album" }
+  ]
 }

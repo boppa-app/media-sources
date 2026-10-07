@@ -20,4 +20,8 @@ const albums = docs.map(d => ({
   highResArtworkUrl: 'https://archive.org/services/img/' + d.identifier
 }));
 
-postResult({ albums: albums, songs: [] });
+postResult({
+  tracks: { song: [] },
+  tracklists: { album: albums },
+  sectionOrder: ['tracklists.album', 'tracks.song']
+});
