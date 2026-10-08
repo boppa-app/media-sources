@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
+import { loadContainer } from "./container.ts";
 import { headerPayloadFits } from "./header.ts";
 import { isSafePath } from "./paths.ts";
 import { parseUserScriptMetadata, type UserScriptMetadata } from "./userscript.ts";
@@ -84,10 +85,11 @@ export const ENTRY_DIRS = ["context", "workers", "popup"] as const;
 export const ICON_FILE = "icon.svg";
 export const PLAYBACK_DIR = "playback";
 export const PLAYBACK_HTML_FILE = `${PLAYBACK_DIR}/index.html`;
+export const CONTAINER_DIR = "container";
 
-export const TRACK_RADIO_SCRIPT = "data/list/trackRadio.js";
+export const TRACK_RADIO_PATH = "list/trackRadio";
 
-export function dataScriptPaths(manifest: Manifest): string[] {
+export function dataPaths(manifest: Manifest): string[] {
   const tracks = manifest.trackTypes.map((type) => type.id);
   const profiles = manifest.profileTypes.map((type) => type.id);
   const tracklists = manifest.tracklistTypes.map((type) => type.id);
@@ -103,8 +105,8 @@ export function dataScriptPaths(manifest: Manifest): string[] {
     ["list/profileTracklists", tracklists],
   ];
   return [
-    ...groups.flatMap(([dir, ids]) => ids.map((id) => `data/${dir}/${id}.js`)),
-    TRACK_RADIO_SCRIPT,
+    ...groups.flatMap(([dir, ids]) => ids.map((id) => `${dir}/${id}`)),
+    TRACK_RADIO_PATH,
   ];
 }
 
@@ -214,17 +216,14 @@ export function validateSource(
   }
 
   const hasPlaybackHtml = files.has(PLAYBACK_HTML_FILE);
+  const usesContainer = usesContainerPlayback(manifest, files);
   if (hasPlaybackHtml && manifest.playbackUrl !== undefined) {
     problems.push(`use either ${PLAYBACK_HTML_FILE} or "playbackUrl" in manifest.json, not both`);
-  } else if (!hasPlaybackHtml && manifest.playbackUrl === undefined) {
-    problems.push(`add ${PLAYBACK_HTML_FILE} or set "playbackUrl" in manifest.json`);
   }
 
   problems.push(...typeProblems(manifest));
   problems.push(...entryProblems(files));
-  const knownDataScripts = new Set(dataScriptPaths(manifest));
   let totalBytes = 0;
-  let dataScriptCount = 0;
 
   for (const [path, data] of files) {
     totalBytes += data.length;
@@ -246,14 +245,12 @@ export function validateSource(
       if (text !== undefined && !/<svg[\s>]/.test(text)) problems.push(`${path}: does not contain an <svg> element`);
     } else if (path === PLAYBACK_HTML_FILE) {
       continue;
-    } else if (parts[0] === "data") {
-      if (!knownDataScripts.has(path)) {
-        problems.push(
-          `${path}: not a known data script for the declared types; expected one of ${[...knownDataScripts].join(", ")}`,
-        );
-      } else {
-        dataScriptCount++;
+    } else if (parts[0] === CONTAINER_DIR) {
+      if (!isContainerLibrary(path)) {
+        problems.push(`${path}: ${CONTAINER_DIR}/ only holds .js files, directly inside it`);
       }
+    } else if (usesContainer && parts[0] === PLAYBACK_DIR) {
+      problems.push(`${path}: ${PLAYBACK_DIR}/ only holds a WebView player page and its user scripts`);
     } else if (userScriptDir !== undefined && isUserScriptDir(userScriptDir)) {
       if (text !== undefined) {
         try {
@@ -272,10 +269,42 @@ export function validateSource(
   if (totalBytes > MAX_SOURCE_BYTES) {
     problems.push(`source is ${totalBytes} bytes, the limit is ${MAX_SOURCE_BYTES}`);
   }
-  if (dataScriptCount === 0) problems.push("no data scripts found under data/");
+
+  const container = loadContainer(files);
+  problems.push(...container.problems);
+  const registersResolve = container.playbackHandlers.includes("resolve");
+  if (usesContainer && !registersResolve) {
+    problems.push(
+      `no player: register resolve with boppa.playback.register in ${CONTAINER_DIR}/*.js, or add ${PLAYBACK_HTML_FILE} or "playbackUrl"`,
+    );
+  } else if (!usesContainer && registersResolve) {
+    problems.push(
+      `registers a playback resolve handler but plays in a WebView from ${PLAYBACK_HTML_FILE} or "playbackUrl"; use one player`,
+    );
+  }
+  const knownDataPaths = new Set(dataPaths(manifest));
+  for (const name of container.dataHandlers) {
+    if (!knownDataPaths.has(name)) {
+      problems.push(
+        `boppa.data.register: "${name}" is not a data path for the declared types; expected one of ${[...knownDataPaths].join(", ")}`,
+      );
+    }
+  }
+  if (container.dataHandlers.length === 0) {
+    problems.push(`no data handlers registered with boppa.data.register in ${CONTAINER_DIR}/*.js`);
+  }
 
   if (problems.length > 0) throw new ValidationError(subject, problems);
   return manifest;
+}
+
+export function usesContainerPlayback(manifest: Manifest, files: Map<string, Buffer>): boolean {
+  return !files.has(PLAYBACK_HTML_FILE) && manifest.playbackUrl === undefined;
+}
+
+function isContainerLibrary(path: string): boolean {
+  const parts = path.split("/");
+  return parts.length === 2 && parts[0] === CONTAINER_DIR && parts[1].endsWith(".js");
 }
 
 function isUserScriptDir(dir: string): boolean {

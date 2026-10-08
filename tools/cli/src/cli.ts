@@ -4,8 +4,17 @@ import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { APP_CONFIG_FILE, BASE_URL_VARIABLE, build, defaultBaseUrl, loadRepo, normalizeBaseUrl } from "./build.ts";
 import { checkVersions } from "./check.ts";
+import { loadContainer } from "./container.ts";
 import { HEADER_SIZE, parseHeader } from "./header.ts";
-import { ENTRY_DIRS, entryKeys, MANIFEST_FILE, PLAYBACK_DIR, userScripts } from "./manifest.ts";
+import {
+  ENTRY_DIRS,
+  entryKeys,
+  MANIFEST_FILE,
+  PLAYBACK_DIR,
+  CONTAINER_DIR,
+  userScripts,
+  usesContainerPlayback,
+} from "./manifest.ts";
 import { contentHash, loadSourceDir, pack, packageManifest, readPackage } from "./package.ts";
 
 const DEFAULT_BASE_URL = defaultBaseUrl();
@@ -118,9 +127,23 @@ function inspectFile(file: string): void {
   console.log(`name          ${pkg.manifest.name}`);
   console.log(`size          ${bytes.length} bytes`);
   console.log(`content hash  ${contentHash(pkg)}`);
-  console.log("playback      " + (pkg.manifest.playbackUrl ?? "playback/index.html"));
+  const usesContainer = usesContainerPlayback(pkg.manifest, pkg.files);
+  const container = loadContainer(pkg.files);
+  console.log(
+    "playback      " +
+      (usesContainer
+        ? `container (${container.playbackHandlers.join(", ") || "no handlers"})`
+        : pkg.manifest.playbackUrl ?? "playback/index.html"),
+  );
+  const libraries = [...pkg.files.keys()].filter((path) => path.startsWith(`${CONTAINER_DIR}/`)).sort();
+  if (libraries.length > 0) {
+    console.log("container");
+    for (const path of libraries) console.log(`  ${path}`);
+  }
+  console.log("data handlers");
+  for (const name of container.dataHandlers) console.log(`  ${name}`);
   const scriptDirs = [
-    PLAYBACK_DIR,
+    ...(usesContainer ? [] : [PLAYBACK_DIR]),
     ...ENTRY_DIRS.flatMap((kind) => entryKeys(pkg.files, kind).map((key) => `${kind}/${key}`)),
   ];
   for (const dir of scriptDirs) {

@@ -6,7 +6,7 @@ import { HEADER_SIZE, parseHeader } from "../src/header.ts";
 import { entryConfig, entryKeys, userScripts, ValidationError } from "../src/manifest.ts";
 import { contentHash, loadSourceDir, pack, readPackage } from "../src/package.ts";
 import { readZip } from "../src/zip.ts";
-import { baseManifest, makeSource, script } from "./helpers.ts";
+import { baseManifest, dataLibrary, makeSource, playerLibrary, script } from "./helpers.ts";
 
 const problemsOf = (fn: () => unknown): string[] => {
   try {
@@ -74,7 +74,7 @@ test("user scripts without a valid metadata block are rejected", () => {
   assert.match(problems.join("\n"), /06-unclosed\.js: metadata block is not closed/);
 });
 
-test("playback needs exactly one of index.html or playbackUrl", () => {
+test("playback takes at most one of index.html or playbackUrl", () => {
   const dir = makeSource({ "manifest.json": { ...baseManifest, playbackUrl: "https://example.com/player" } });
   assert.match(problemsOf(() => loadSourceDir(dir)).join(), /not both/);
   rmSync(join(dir, "playback/index.html"));
@@ -82,7 +82,22 @@ test("playback needs exactly one of index.html or playbackUrl", () => {
   rmSync(join(dir, "manifest.json"));
   const noPlayback = makeSource({});
   rmSync(join(noPlayback, "playback/index.html"));
-  assert.match(problemsOf(() => loadSourceDir(noPlayback)).join(), /add playback\/index\.html/);
+  assert.match(problemsOf(() => loadSourceDir(noPlayback)).join(), /playback\/ only holds a WebView player page/);
+  rmSync(join(noPlayback, "playback/01-bridge.js"));
+  assert.match(problemsOf(() => loadSourceDir(noPlayback)).join(), /no player/);
+});
+
+test("a source without a player page or playbackUrl plays through its container", () => {
+  const dir = makeSource({ "container/90-playback.js": playerLibrary });
+  rmSync(join(dir, "playback"), { recursive: true });
+  assert.doesNotThrow(() => loadSourceDir(dir));
+});
+
+test("a WebView source cannot also register a playback resolve handler", () => {
+  assert.match(
+    problemsOf(() => loadSourceDir(makeSource({ "container/90-playback.js": playerLibrary }))).join(" "),
+    /registers a playback resolve handler but plays in a WebView/,
+  );
 });
 
 test("context, worker and popup folders carry their own config.json", () => {
@@ -136,24 +151,39 @@ test("entry configs are checked against their own schema", () => {
 });
 
 
-test("unknown files and data scripts are rejected", () => {
+test("unknown files, including the old data folder, are rejected", () => {
   const problems = problemsOf(() => loadSourceDir(makeSource({
-    "data/search/song.js": "",
+    "data/search/tracks/song.js": "postResult({ items: [] });\n",
+    "container/nested/x.js": "var x = {};\n",
     "notes.txt": "hi",
     "playback/nested/x.js": script("X"),
   })));
-  assert.match(problems.join("\n"), /data\/search\/song\.js: not a known data script/);
+  assert.match(problems.join("\n"), /data\/search\/tracks\/song\.js: not part of the package layout/);
+  assert.match(problems.join("\n"), /container\/nested\/x\.js: container\/ only holds \.js files, directly inside it/);
   assert.match(problems.join("\n"), /notes\.txt: not part of the package layout/);
   assert.match(problems.join("\n"), /playback\/nested\/x\.js: not part of the package layout/);
 });
 
-test("data scripts must belong to a declared type", () => {
+test("data handlers must belong to a declared type", () => {
   const problems = problemsOf(() => loadSourceDir(makeSource({
-    "data/search/tracks/video.js": "",
-    "data/get/profile/artist.js": "",
+    "container/60-extra.js": dataLibrary("search/tracks/video", "get/profile/artist"),
   })));
-  assert.match(problems.join("\n"), /data\/search\/tracks\/video\.js: not a known data script/);
-  assert.match(problems.join("\n"), /data\/get\/profile\/artist\.js: not a known data script/);
+  assert.match(problems.join("\n"), /"search\/tracks\/video" is not a data path for the declared types/);
+  assert.match(problems.join("\n"), /"get\/profile\/artist" is not a data path for the declared types/);
+});
+
+test("a source must register at least one data handler", () => {
+  assert.match(
+    problemsOf(() => loadSourceDir(makeSource({ "container/50-search-tracks-song.js": undefined }))).join(" "),
+    /no data handlers registered with boppa\.data\.register/,
+  );
+});
+
+test("container scripts that throw while loading are reported", () => {
+  assert.match(
+    problemsOf(() => loadSourceDir(makeSource({ "container/40-broken.js": "throw new Error('boom');\n" }))).join(" "),
+    /container\/40-broken\.js: threw while loading: boom/,
+  );
 });
 
 test("declared types are accepted with their scripts", () => {
@@ -168,9 +198,8 @@ test("declared types are accepted with their scripts", () => {
   };
   assert.doesNotThrow(() => loadSourceDir(makeSource({
     "manifest.json": manifest,
-    "data/search/tracks/episode.js": "postResult({ items: [] });\n",
-    "data/get/profile/user.js": "",
-    "data/list/profileTracklists/series.js": "",
+    "container/50-search-tracks-song.js": undefined,
+    "container/50-data.js": dataLibrary("search/tracks/episode", "get/profile/user", "list/profileTracklists/series"),
   })));
 });
 
