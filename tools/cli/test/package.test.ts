@@ -100,21 +100,14 @@ test("a WebView source cannot also register a playback resolve handler", () => {
   );
 });
 
-test("context, worker and popup folders carry their own config.json", () => {
+test("worker and popup folders carry their own config.json", () => {
   const source = loadSourceDir(makeSource({
-    "context/session/config.json": { title: "Session", url: "https://example.com", intervalSeconds: 1800 },
-    "context/session/01-capture.js": script("Capture Session"),
     "workers/token/config.json": { title: "Token", url: "https://example.com/token" },
     "workers/token/01-mint.js": script("Mint Token"),
     "popup/login/config.json": { title: "Log In", url: "https://example.com/login" },
     "popup/login/01-detect.js": script("Detect Login"),
   }));
-  assert.deepEqual(entryKeys(source.files, "context"), ["session"]);
-  assert.deepEqual(entryConfig(source.files, "context", "session"), {
-    title: "Session",
-    url: "https://example.com",
-    intervalSeconds: 1800,
-  });
+  assert.deepEqual(entryKeys(source.files, "workers"), ["token"]);
   assert.deepEqual(entryConfig(source.files, "workers", "token"), {
     title: "Token",
     url: "https://example.com/token",
@@ -123,29 +116,24 @@ test("context, worker and popup folders carry their own config.json", () => {
     title: "Log In",
     url: "https://example.com/login",
   });
-  assert.equal(userScripts(source.files, "context/session")[0].name, "Capture Session");
   assert.equal(userScripts(source.files, "workers/token")[0].name, "Mint Token");
   assert.equal(userScripts(source.files, "popup/login")[0].name, "Detect Login");
 });
 
 test("an entry folder without a config.json is rejected", () => {
   const problems = problemsOf(() => loadSourceDir(makeSource({
-    "context/session/01-capture.js": script("Capture Session"),
     "workers/token/01-mint.js": script("Mint Token"),
     "popup/login/01-detect.js": script("Detect Login"),
   })));
-  assert.match(problems.join("\n"), /context\/session: config\.json is missing/);
   assert.match(problems.join("\n"), /workers\/token: config\.json is missing/);
   assert.match(problems.join("\n"), /popup\/login: config\.json is missing/);
 });
 
 test("entry configs are checked against their own schema", () => {
   const problems = problemsOf(() => loadSourceDir(makeSource({
-    "context/session/config.json": { title: "Session", url: "https://example.com" },
     "workers/token/config.json": { title: "Token", url: "https://example.com", intervalSeconds: 60 },
     "popup/login/config.json": "{",
   })));
-  assert.match(problems.join("\n"), /context\/session\/config\.json: .*intervalSeconds/);
   assert.match(problems.join("\n"), /workers\/token\/config\.json: .*unknown field "intervalSeconds"/);
   assert.match(problems.join("\n"), /popup\/login\/config\.json: not valid JSON/);
 });
