@@ -11,6 +11,7 @@ import {
   entryKeys,
   MANIFEST_FILE,
   PLAYBACK_DIR,
+  readPlaybackConfig,
   CONTAINER_DIR,
   userScripts,
   usesContainerPlayback,
@@ -127,13 +128,13 @@ function inspectFile(file: string): void {
   console.log(`name          ${pkg.manifest.name}`);
   console.log(`size          ${bytes.length} bytes`);
   console.log(`content hash  ${contentHash(pkg)}`);
-  const usesContainer = usesContainerPlayback(pkg.manifest, pkg.files);
+  const usesContainer = usesContainerPlayback(pkg.files);
   const container = loadContainer(pkg.files);
   console.log(
     "playback      " +
       (usesContainer
         ? `container (${container.playbackHandlers.join(", ") || "no handlers"})`
-        : pkg.manifest.playbackUrl ?? "playback/index.html"),
+        : readPlaybackConfig(pkg.files)?.url ?? "playback/index.html"),
   );
   const libraries = [...pkg.files.keys()].filter((path) => path.startsWith(`${CONTAINER_DIR}/`)).sort();
   if (libraries.length > 0) {

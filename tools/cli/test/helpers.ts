@@ -14,7 +14,6 @@ export const baseManifest = {
   id: "example.com",
   version: "1.0.0",
   name: "Example",
-  url: "example.com",
   trackTypes: [{ id: "song" }],
   profileTypes: [],
   tracklistTypes: [],
