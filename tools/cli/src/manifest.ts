@@ -22,6 +22,12 @@ export interface PopupConfig {
   customUserAgent?: string;
 }
 
+export interface PlaybackConfig {
+  $schema?: string;
+  url?: string;
+  customUserAgent?: string;
+}
+
 export interface WorkerConfig {
   $schema?: string;
   title: string;
@@ -58,12 +64,9 @@ export interface Manifest {
   fqdn?: string;
   version: string;
   name: string;
-  url: string;
   author?: string;
   highlightColor?: string;
   allowedUrls?: string[];
-  playbackUrl?: string;
-  playbackUserAgent?: string;
   trackTypes: TrackTypeDeclaration[];
   profileTypes: ProfileTypeDeclaration[];
   tracklistTypes: TracklistTypeDeclaration[];
@@ -85,6 +88,8 @@ export const ENTRY_DIRS = ["context", "workers", "popup"] as const;
 export const ICON_FILE = "icon.svg";
 export const PLAYBACK_DIR = "playback";
 export const PLAYBACK_HTML_FILE = `${PLAYBACK_DIR}/index.html`;
+export const PLAYBACK_CONFIG_FILE = `${PLAYBACK_DIR}/${CONFIG_FILE}`;
+export const PLAYBACK_SCHEMA = "playback.v1.schema.json";
 export const CONTAINER_DIR = "container";
 
 export const TRACK_RADIO_PATH = "list/trackRadio";
@@ -135,6 +140,7 @@ const schemaUrl = (name: string) => new URL(`../../../schema/${name}`, import.me
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 let manifestValidator: ValidateFunction | undefined;
 let appConfigValidator: ValidateFunction | undefined;
+let playbackValidator: ValidateFunction | undefined;
 const entryValidators = new Map<EntryKind, ValidateFunction>();
 
 function compile(name: string): ValidateFunction {
@@ -216,9 +222,10 @@ export function validateSource(
   }
 
   const hasPlaybackHtml = files.has(PLAYBACK_HTML_FILE);
-  const usesContainer = usesContainerPlayback(manifest, files);
-  if (hasPlaybackHtml && manifest.playbackUrl !== undefined) {
-    problems.push(`use either ${PLAYBACK_HTML_FILE} or "playbackUrl" in manifest.json, not both`);
+  const playback = validatePlaybackConfig(files, problems);
+  const usesContainer = !hasPlaybackHtml && playback?.url === undefined;
+  if (hasPlaybackHtml && playback?.url !== undefined) {
+    problems.push(`use either ${PLAYBACK_HTML_FILE} or "url" in ${PLAYBACK_CONFIG_FILE}, not both`);
   }
 
   problems.push(...typeProblems(manifest));
@@ -251,6 +258,8 @@ export function validateSource(
       }
     } else if (usesContainer && parts[0] === PLAYBACK_DIR) {
       problems.push(`${path}: ${PLAYBACK_DIR}/ only holds a WebView player page and its user scripts`);
+    } else if (path === PLAYBACK_CONFIG_FILE) {
+      continue;
     } else if (userScriptDir !== undefined && isUserScriptDir(userScriptDir)) {
       if (text !== undefined) {
         try {
@@ -275,11 +284,11 @@ export function validateSource(
   const registersResolve = container.playbackHandlers.includes("resolve");
   if (usesContainer && !registersResolve) {
     problems.push(
-      `no player: register resolve with boppa.playback.register in ${CONTAINER_DIR}/*.js, or add ${PLAYBACK_HTML_FILE} or "playbackUrl"`,
+      `no player: register resolve with boppa.playback.register in ${CONTAINER_DIR}/*.js, or add ${PLAYBACK_HTML_FILE} or "url" in ${PLAYBACK_CONFIG_FILE}`,
     );
   } else if (!usesContainer && registersResolve) {
     problems.push(
-      `registers a playback resolve handler but plays in a WebView from ${PLAYBACK_HTML_FILE} or "playbackUrl"; use one player`,
+      `registers a playback resolve handler but plays in a WebView from ${PLAYBACK_HTML_FILE} or "url" in ${PLAYBACK_CONFIG_FILE}; use one player`,
     );
   }
   const knownDataPaths = new Set(dataPaths(manifest));
@@ -298,8 +307,31 @@ export function validateSource(
   return manifest;
 }
 
-export function usesContainerPlayback(manifest: Manifest, files: Map<string, Buffer>): boolean {
-  return !files.has(PLAYBACK_HTML_FILE) && manifest.playbackUrl === undefined;
+export function usesContainerPlayback(files: Map<string, Buffer>): boolean {
+  return !files.has(PLAYBACK_HTML_FILE) && readPlaybackConfig(files)?.url === undefined;
+}
+
+export function readPlaybackConfig(files: Map<string, Buffer>): PlaybackConfig | undefined {
+  const data = files.get(PLAYBACK_CONFIG_FILE);
+  return data === undefined ? undefined : JSON.parse(data.toString("utf8")) as PlaybackConfig;
+}
+
+function validatePlaybackConfig(files: Map<string, Buffer>, problems: string[]): PlaybackConfig | undefined {
+  const data = files.get(PLAYBACK_CONFIG_FILE);
+  if (data === undefined) return undefined;
+  let value: unknown;
+  try {
+    value = parseJson(data.toString("utf8"), PLAYBACK_CONFIG_FILE);
+  } catch (error) {
+    problems.push(...(error as ValidationError).problems.map((p) => `${PLAYBACK_CONFIG_FILE}: ${p}`));
+    return undefined;
+  }
+  playbackValidator ??= compile(PLAYBACK_SCHEMA);
+  if (!playbackValidator(value)) {
+    problems.push(...describeSchemaErrors(playbackValidator.errors).map((p) => `${PLAYBACK_CONFIG_FILE}: ${p}`));
+    return undefined;
+  }
+  return value as PlaybackConfig;
 }
 
 function isContainerLibrary(path: string): boolean {

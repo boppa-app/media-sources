@@ -4,7 +4,7 @@
   "title": "Boppa media source manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "version", "name", "url", "trackTypes", "profileTypes", "tracklistTypes"],
+  "required": ["id", "version", "name", "trackTypes", "profileTypes", "tracklistTypes"],
   "properties": {
     "$schema": { "type": "string" },
     "id": {
@@ -15,7 +15,7 @@
     "fqdn": {
       "type": "string",
       "minLength": 1,
-      "description": "Domain whose media this source serves, for example archive.org. Defaults to id. Sources that share an fqdn address the same saved media, and only one of them can be enabled at a time."
+      "description": "Domain whose media this source serves, for example archive.org. Defaults to id. Also the default allowedUrls entry and the base URL of playback/index.html. Sources that share an fqdn address the same saved media, and only one of them can be enabled at a time."
     },
     "version": {
       "type": "string",
@@ -23,11 +23,6 @@
       "description": "Free-form version. Change it on every release; the app applies an update when it differs."
     },
     "name": { "type": "string", "minLength": 1 },
-    "url": {
-      "type": "string",
-      "minLength": 1,
-      "description": "The domain the source communicates with, for example archive.org."
-    },
     "author": { "type": "string" },
     "highlightColor": {
       "type": "string",
@@ -37,12 +32,6 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
-    "playbackUrl": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Page to load as the player, instead of playback/index.html."
-    },
-    "playbackUserAgent": { "type": "string" },
     "trackTypes": {
       "type": "array",
       "description": "Kinds of tracks the source serves, in display order.",

@@ -3,7 +3,7 @@ import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { HEADER_SIZE, parseHeader } from "../src/header.ts";
-import { entryConfig, entryKeys, userScripts, ValidationError } from "../src/manifest.ts";
+import { entryConfig, entryKeys, readPlaybackConfig, userScripts, ValidationError } from "../src/manifest.ts";
 import { contentHash, loadSourceDir, pack, readPackage } from "../src/package.ts";
 import { readZip } from "../src/zip.ts";
 import { baseManifest, dataLibrary, makeSource, playerLibrary, script } from "./helpers.ts";
@@ -74,11 +74,11 @@ test("user scripts without a valid metadata block are rejected", () => {
   assert.match(problems.join("\n"), /06-unclosed\.js: metadata block is not closed/);
 });
 
-test("playback takes at most one of index.html or playbackUrl", () => {
-  const dir = makeSource({ "manifest.json": { ...baseManifest, playbackUrl: "https://example.com/player" } });
+test("playback takes at most one of index.html or a playback config url", () => {
+  const dir = makeSource({ "playback/config.json": { url: "https://example.com/player", customUserAgent: "Agent" } });
   assert.match(problemsOf(() => loadSourceDir(dir)).join(), /not both/);
   rmSync(join(dir, "playback/index.html"));
-  assert.equal(loadSourceDir(dir).manifest.playbackUrl, "https://example.com/player");
+  assert.deepEqual(readPlaybackConfig(loadSourceDir(dir).files), { url: "https://example.com/player", customUserAgent: "Agent" });
   rmSync(join(dir, "manifest.json"));
   const noPlayback = makeSource({});
   rmSync(join(noPlayback, "playback/index.html"));
@@ -87,7 +87,7 @@ test("playback takes at most one of index.html or playbackUrl", () => {
   assert.match(problemsOf(() => loadSourceDir(noPlayback)).join(), /no player/);
 });
 
-test("a source without a player page or playbackUrl plays through its container", () => {
+test("a source without a player page or playback config url plays through its container", () => {
   const dir = makeSource({ "container/90-playback.js": playerLibrary });
   rmSync(join(dir, "playback"), { recursive: true });
   assert.doesNotThrow(() => loadSourceDir(dir));
@@ -229,4 +229,15 @@ test("id and version must fit in the header", () => {
     "manifest.json": { ...baseManifest, version: "x".repeat(250) },
   })));
   assert.match(problems.join(), /256-byte package header/);
+});
+
+test("playback config is validated against its schema", () => {
+  const problems = problemsOf(() => loadSourceDir(makeSource({ "playback/config.json": { url: 42, userAgent: "Agent" } })));
+  assert.match(problems.join("\n"), /playback\/config\.json: \/url: must be string/);
+  assert.match(problems.join("\n"), /playback\/config\.json: \(root\): unknown field "userAgent"/);
+});
+
+test("a playback config without a url keeps index.html as the player", () => {
+  const source = loadSourceDir(makeSource({ "playback/config.json": { customUserAgent: "Agent" } }));
+  assert.deepEqual(readPlaybackConfig(source.files), { customUserAgent: "Agent" });
 });
