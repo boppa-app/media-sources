@@ -7,14 +7,6 @@ import { parseUserScriptMetadata, type UserScriptMetadata } from "./userscript.t
 
 export type InjectionTime = "atDocumentStart" | "atDocumentEnd";
 
-export interface ContextConfig {
-  $schema?: string;
-  title: string;
-  url: string;
-  intervalSeconds: number;
-  customUserAgent?: string;
-}
-
 export interface PopupConfig {
   $schema?: string;
   title: string;
@@ -40,7 +32,6 @@ export type PluralName = string | { one: string; other?: string };
 export interface TrackTypeDeclaration {
   id: string;
   name?: PluralName;
-  icon?: string;
   media?: "audio" | "video";
   belongsTo?: string[];
 }
@@ -48,13 +39,11 @@ export interface TrackTypeDeclaration {
 export interface ProfileTypeDeclaration {
   id: string;
   name?: PluralName;
-  icon?: string;
 }
 
 export interface TracklistTypeDeclaration {
   id: string;
   name?: PluralName;
-  icon?: string;
   presentation?: "album" | "playlist";
 }
 
@@ -84,7 +73,7 @@ export interface UserScript extends UserScriptMetadata {
 
 export const MANIFEST_FILE = "manifest.json";
 export const CONFIG_FILE = "config.json";
-export const ENTRY_DIRS = ["context", "workers", "popup"] as const;
+export const ENTRY_DIRS = ["workers", "popup"] as const;
 export const ICON_FILE = "icon.svg";
 export const PLAYBACK_DIR = "playback";
 export const PLAYBACK_HTML_FILE = `${PLAYBACK_DIR}/index.html`;
@@ -118,7 +107,6 @@ export function dataPaths(manifest: Manifest): string[] {
 export type EntryKind = typeof ENTRY_DIRS[number];
 
 export const ENTRY_SCHEMAS: Record<EntryKind, string> = {
-  context: "context.v1.schema.json",
   workers: "worker.v1.schema.json",
   popup: "popup.v1.schema.json",
 };
