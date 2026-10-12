@@ -68,15 +68,15 @@
         hasReceivedInitialPlaying = true;
         navigator.mediaSession.setPositionState({ duration: trackDurationSeconds, playbackRate: 1.0 });
         navigator.mediaSession.setActionHandler('seekto', function(details) {
-          if (window.boppaSeek) window.boppaSeek((details && details.seekTime != null ? details.seekTime : 0) * 1000);
+          seek((details && details.seekTime != null ? details.seekTime : 0) * 1000);
         });
       }
     } else if (msg.type === 'boppaEvent') {
-      postEvent(msg.event);
+      boppa.postEvent(msg.event);
     }
   });
 
-  window.boppaLoad = function(trackData) {
+  var load = function(trackData) {
     hasReceivedInitialPlaying = false;
     var nowplayinginfo = document.getElementById('boppa-nowplayinginfo-audio');
     navigator.mediaSession.setActionHandler('seekto', null);
@@ -111,13 +111,13 @@
     trackDurationSeconds = trackData.duration ? trackData.duration / 1000 : 0;
     if (trackDurationSeconds) {
       navigator.mediaSession.setPositionState({ duration: trackDurationSeconds, playbackRate: 0.0001, position: 0 });
-      console.log('boppaLoad: set mediaSession duration to', trackDurationSeconds);
+      console.log('load: set mediaSession duration to', trackDurationSeconds);
     }
 
     sendToIframe({type: 'boppaLoad', data: trackData});
   };
 
-  window.boppaPlay = function() {
+  var play = function() {
     var nowPlayingInfoAudioElement = document.getElementById('boppa-nowplayinginfo-audio');
     if (nowPlayingInfoAudioElement) {
       nowPlayingInfoAudioElement.muted = false;
@@ -127,21 +127,21 @@
     sendToIframe({type: 'boppaPlay'});
   };
 
-  window.boppaPause = function() {
+  var pause = function() {
     var nowPlayingInfoAudioElement = document.getElementById('boppa-nowplayinginfo-audio');
     if (nowPlayingInfoAudioElement) nowPlayingInfoAudioElement.pause();
     navigator.mediaSession.playbackState = 'paused';
     sendToIframe({type: 'boppaPause'});
   };
 
-  window.boppaSeek = function(ms) {
+  var seek = function(ms) {
     if (trackDurationSeconds) {
       navigator.mediaSession.setPositionState({ duration: trackDurationSeconds, position: Math.max(0, ms / 1000) });
     }
     sendToIframe({type: 'boppaSeek', data: ms});
   };
 
-  window.boppaStop = function() {
+  var stop = function() {
     var nowPlayingInfoAudioElement = document.getElementById('boppa-nowplayinginfo-audio');
     if (nowPlayingInfoAudioElement) {
       nowPlayingInfoAudioElement.muted = true;
@@ -154,4 +154,9 @@
     sendToIframe({type: 'boppaMute'});
     sendToIframe({type: 'boppaPause'});
   };
+
+  navigator.mediaSession.setActionHandler('play', play);
+  navigator.mediaSession.setActionHandler('pause', pause);
+
+  boppa.playback.register({ load: load, play: play, pause: pause, seek: seek, stop: stop });
 })();
