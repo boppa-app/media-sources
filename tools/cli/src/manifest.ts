@@ -54,6 +54,7 @@ export interface Manifest {
   version: string;
   name: string;
   author?: string;
+  gitUrl?: string;
   highlightColor?: string;
   allowedUrls?: string[];
   trackTypes: TrackTypeDeclaration[];
