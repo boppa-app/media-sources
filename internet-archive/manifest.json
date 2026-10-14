@@ -1,8 +1,9 @@
 {
   "$schema": "../schema/manifest.v1.schema.json",
   "id": "archive.org",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "name": "Internet Archive",
+  "gitUrl": "https://github.com/boppa-app/media-sources",
   "highlightColor": "#FFFFFF",
   "trackTypes": [
     { "id": "song", "name": { "one": "Song", "other": "Songs" }, "media": "audio", "belongsTo": ["album"] }

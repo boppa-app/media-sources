@@ -24,6 +24,11 @@
     },
     "name": { "type": "string", "minLength": 1 },
     "author": { "type": "string" },
+    "gitUrl": {
+      "type": "string",
+      "minLength": 1,
+      "description": "URL of the git repository the source is developed in."
+    },
     "highlightColor": {
       "type": "string",
       "pattern": "^#[0-9A-Fa-f]{6}$"
