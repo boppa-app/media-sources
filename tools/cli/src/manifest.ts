@@ -50,7 +50,7 @@ export interface TracklistTypeDeclaration {
 export interface Manifest {
   $schema?: string;
   id: string;
-  fqdn?: string;
+  fqdn: string;
   version: string;
   name: string;
   author?: string;

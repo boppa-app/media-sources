@@ -4,7 +4,7 @@
   "title": "Boppa media source manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "version", "name", "trackTypes", "profileTypes", "tracklistTypes"],
+  "required": ["id", "fqdn", "version", "name", "trackTypes", "profileTypes", "tracklistTypes"],
   "properties": {
     "$schema": { "type": "string" },
     "id": {
@@ -15,7 +15,7 @@
     "fqdn": {
       "type": "string",
       "minLength": 1,
-      "description": "Domain whose media this source serves, for example archive.org. Defaults to id. Also the default allowedUrls entry and the base URL of playback/index.html. Sources that share an fqdn address the same saved media, and only one of them can be enabled at a time."
+      "description": "Domain whose media this source serves, for example archive.org. Also the default allowedUrls entry and the base URL of playback/index.html. Sources that share an fqdn address the same saved media, and only one of them can be enabled at a time."
     },
     "version": {
       "type": "string",
