@@ -12,6 +12,7 @@ export const playerLibrary = "boppa.playback.register({ resolve: function() {} }
 
 export const baseManifest = {
   id: "example.com",
+  fqdn: "example.com",
   version: "1.0.0",
   name: "Example",
   trackTypes: [{ id: "song" }],

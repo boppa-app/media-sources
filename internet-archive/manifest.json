@@ -1,7 +1,8 @@
 {
   "$schema": "../schema/manifest.v1.schema.json",
   "id": "archive.org",
-  "version": "0.2.5",
+  "fqdn": "archive.org",
+  "version": "0.2.6",
   "name": "Internet Archive",
   "gitUrl": "https://github.com/boppa-app/media-sources",
   "highlightColor": "#FFFFFF",
