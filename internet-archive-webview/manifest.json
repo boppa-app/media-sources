@@ -1,0 +1,18 @@
+{
+  "$schema": "../schema/manifest.v1.schema.json",
+  "id": "archive.org.webview",
+  "fqdn": "archive.org",
+  "version": "0.1.0",
+  "name": "Internet Archive (WebView)",
+  "gitUrl": "https://github.com/boppa-app/media-sources",
+  "highlightColor": "#FFFFFF",
+  "trackTypes": [
+    { "id": "song", "name": { "one": "Song", "other": "Songs" }, "media": "audio", "belongsTo": ["album"] }
+  ],
+  "profileTypes": [
+    { "id": "artist", "name": { "one": "Artist", "other": "Artists" } }
+  ],
+  "tracklistTypes": [
+    { "id": "album", "name": { "one": "Album", "other": "Albums" }, "presentation": "album" }
+  ]
+}
