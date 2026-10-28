@@ -1,2 +1,2 @@
 # media-sources
-Media source configurations for Boppa.
+Media source packages for Boppa.
