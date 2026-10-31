@@ -162,7 +162,7 @@ function inspectFile(file: string): void {
 async function inspectUrl(url: string): Promise<void> {
   const controller = new AbortController();
   const response = await fetch(url, {
-    headers: { Range: `bytes=0-${HEADER_SIZE - 1}` },
+    headers: { Range: `bytes=0-${HEADER_SIZE - 1}`, "Accept-Encoding": "identity" },
     signal: controller.signal,
   });
   if (response.status !== 200 && response.status !== 206) {
