@@ -30,8 +30,6 @@ export async function checkVersions(root: string, baseUrl: string): Promise<Chec
       problems.push(`${published.name}: is published but its folder was removed; its URL must keep working`);
     } else if (current.id !== published.id) {
       problems.push(`${published.name}: id changed from "${published.id}" to "${current.id}"`);
-    } else if (current.contentHash !== published.contentHash && current.version === published.version) {
-      problems.push(`${published.name}: contents changed but version is still "${current.version}"`);
     } else if (current.version !== published.version) {
       notes.push(`${published.name}: ${published.version} -> ${current.version}`);
     }

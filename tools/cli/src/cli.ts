@@ -29,7 +29,7 @@ Commands:
   inspect <file|url>           Print a package's header and contents; for a URL, fetch only the header
   unpack <file> [-o dir]       Extract a .boppa file into a source folder
   build [-o dir]               Build the repository into a deployable site (default: dist)
-  check-versions               Fail if a published source changed without a version bump
+  check-versions               Fail if a published source was removed or its id changed
 
 Options:
   -o, --out <path>             Output path
