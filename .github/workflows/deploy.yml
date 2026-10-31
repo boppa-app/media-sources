@@ -48,6 +48,7 @@ jobs:
           command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=main --commit-hash=${{ github.sha }}
       - name: Check published headers
         run: |
+          shopt -s nullglob
           base="$(node -p 'JSON.parse(require("fs").readFileSync("package.json","utf8")).boppa.baseUrl')"
           # New files can 404 for a short while after deploy until the edge picks them up.
           for f in dist/*.boppa; do

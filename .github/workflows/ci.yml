@@ -23,7 +23,9 @@ jobs:
       - run: npm run build
       - run: npm run check-versions
       - name: Inspect packages
-        run: for f in dist/*.boppa; do node tools/cli/src/cli.ts inspect "$f"; done
+        run: |
+          shopt -s nullglob
+          for f in dist/*.boppa; do node tools/cli/src/cli.ts inspect "$f"; done
       - uses: actions/upload-artifact@v4
         with:
           name: dist
