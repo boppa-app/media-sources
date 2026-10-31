@@ -23,6 +23,11 @@
       "description": "Free-form version. Change it on every release; the app applies an update when it differs."
     },
     "name": { "type": "string", "minLength": 1 },
+    "mediaKind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the source offers, in lowercase, for example music, podcasts, or videos. Shown in the search prompt as Explore <mediaKind> on <name>. Defaults to media."
+    },
     "author": { "type": "string" },
     "gitUrl": {
       "type": "string",
