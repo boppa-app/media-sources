@@ -63,7 +63,6 @@ export function loadRepo(root: string, baseUrl: string): Repo {
       problems.push(...error.problems.map((p) => `${name}: ${p}`));
     }
   }
-  if (sources.size === 0) problems.push("no media source folders found");
 
   let appConfig: AppConfig | undefined;
   const appConfigPath = join(root, APP_CONFIG_FILE);
