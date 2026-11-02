@@ -2,7 +2,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { APP_CONFIG_FILE, BASE_URL_VARIABLE, build, defaultBaseUrl, loadRepo, normalizeBaseUrl } from "./build.ts";
+import { BASE_URL_VARIABLE, build, defaultBaseUrl, loadRepo, normalizeBaseUrl } from "./build.ts";
 import { checkVersions } from "./check.ts";
 import { loadContainer } from "./container.ts";
 import { HEADER_SIZE, parseHeader } from "./header.ts";
@@ -19,7 +19,6 @@ import {
 import { contentHash, loadSourceDir, pack, packageManifest, readPackage } from "./package.ts";
 
 const DEFAULT_BASE_URL = defaultBaseUrl();
-const REPO_COMMANDS = new Set(["validate", "build", "check-versions"]);
 
 const USAGE = `Usage: boppa <command> [options]
 
@@ -53,16 +52,15 @@ async function main(argv: string[]): Promise<void> {
     console.log(USAGE);
     return;
   }
-  if (REPO_COMMANDS.has(command) && baseUrl === "") {
+  if (command === "check-versions" && baseUrl === "") {
     throw new UsageError(`Set ${BASE_URL_VARIABLE}, add "boppa": { "baseUrl": "https://..." } to package.json, or pass --base-url`);
   }
 
   switch (command) {
     case "validate": {
       if (args.length === 0) {
-        const { appConfig, sources } = loadRepo(process.cwd(), baseUrl);
+        const { sources } = loadRepo(process.cwd());
         for (const [name, source] of sources) console.log(`✓ ${name} (${source.manifest.id} ${source.manifest.version})`);
-        if (appConfig) console.log(`✓ ${APP_CONFIG_FILE}`);
       } else {
         for (const dir of args) {
           const { manifest } = loadSourceDir(resolve(dir));
@@ -100,7 +98,7 @@ async function main(argv: string[]): Promise<void> {
     }
     case "build": {
       const out = resolve(values.out ?? "dist");
-      const output = build(process.cwd(), out, baseUrl);
+      const output = build(process.cwd(), out);
       for (const [path, data] of output) console.log(`${path} (${data.length} bytes)`);
       return;
     }

@@ -7,7 +7,7 @@ export interface CheckResult {
 }
 
 export async function checkVersions(root: string, baseUrl: string): Promise<CheckResult> {
-  const { sources } = loadRepo(root, baseUrl);
+  const { sources } = loadRepo(root);
   const local = new Map(buildIndex(sources).map((e) => [e.name, e]));
 
   const indexUrl = `${baseUrl}/${INDEX_PATH}`;

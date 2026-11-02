@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://cdn.boppa.app
+      url: https://media-sources.boppa.app
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

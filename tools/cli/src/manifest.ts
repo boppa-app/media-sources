@@ -62,12 +62,6 @@ export interface Manifest {
   tracklistTypes: TracklistTypeDeclaration[];
 }
 
-export interface AppConfig {
-  $schema?: string;
-  format: 1;
-  defaultMediaSources: string[];
-}
-
 export interface UserScript extends UserScriptMetadata {
   file: string;
 }
@@ -128,7 +122,6 @@ export class ValidationError extends Error {
 const schemaUrl = (name: string) => new URL(`../../../schema/${name}`, import.meta.url);
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 let manifestValidator: ValidateFunction | undefined;
-let appConfigValidator: ValidateFunction | undefined;
 let playbackValidator: ValidateFunction | undefined;
 const entryValidators = new Map<EntryKind, ValidateFunction>();
 
@@ -152,14 +145,6 @@ export function parseJson(text: string, subject: string): unknown {
   } catch (error) {
     throw new ValidationError(subject, [`not valid JSON: ${(error as Error).message}`]);
   }
-}
-
-export function validateAppConfig(value: unknown): AppConfig {
-  appConfigValidator ??= compile("iOS-config.v1.schema.json");
-  if (!appConfigValidator(value)) {
-    throw new ValidationError("iOS.json", describeSchemaErrors(appConfigValidator.errors));
-  }
-  return value as AppConfig;
 }
 
 export function isEntryKind(value: string): value is EntryKind {

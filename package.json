@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "boppa": {
-    "baseUrl": "https://cdn.boppa.app"
+    "baseUrl": "https://media-sources.boppa.app"
   },
   "workspaces": [
     "tools/cli"
