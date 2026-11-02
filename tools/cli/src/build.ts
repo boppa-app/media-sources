@@ -3,7 +3,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { type AppConfig, MANIFEST_FILE, parseJson, validateAppConfig, ValidationError } from "./manifest.ts";
 import { contentHash, loadSourceDir, pack, type Source } from "./package.ts";
 
-export const APP_CONFIG_FILE = "iOS-config.json";
+export const APP_CONFIG_FILE = "iOS.json";
 export const SCHEMA_DIR = "schema";
 export const STATIC_DIR = "public";
 export const INDEX_PATH = "index.json";

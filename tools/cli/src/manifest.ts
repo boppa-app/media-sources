@@ -157,7 +157,7 @@ export function parseJson(text: string, subject: string): unknown {
 export function validateAppConfig(value: unknown): AppConfig {
   appConfigValidator ??= compile("iOS-config.v1.schema.json");
   if (!appConfigValidator(value)) {
-    throw new ValidationError("iOS-config.json", describeSchemaErrors(appConfigValidator.errors));
+    throw new ValidationError("iOS.json", describeSchemaErrors(appConfigValidator.errors));
   }
   return value as AppConfig;
 }
