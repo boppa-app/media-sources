@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://static.boppa.app/schema/playback.v1.schema.json",
+  "$id": "https://cdn.boppa.app/schema/playback.v1.schema.json",
   "title": "Boppa media source playback",
   "description": "playback/config.json. Only for sources that play through a WebView player page.",
   "type": "object",
